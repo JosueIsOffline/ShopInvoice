@@ -21,6 +21,7 @@ namespace ShopInvoice
         SqlConnection oCon = new SqlConnection("Data Source=LAPTOP-EHB7IG9Q;Initial Catalog=MoonShop;Integrated Security=True");
         SqlCommand cmd1;
         SqlCommand cmd2;
+        const double itbis = 0.18;
 
         private void button1_Click(object sender, EventArgs e)
         {
@@ -28,6 +29,7 @@ namespace ShopInvoice
             double precio = 0;
             int cantidad;
             double total = 0;
+            
 
             if (prod1.Checked)
             {
@@ -87,9 +89,14 @@ namespace ShopInvoice
             for(int fila = 0;  fila < dataGridView1.Rows.Count; fila++)
             {
                 suma = suma + Convert.ToDouble(dataGridView1.Rows[fila].Cells[3].Value);
+
             }
 
+            double itv = suma * itbis;
             txtTotal.Text = suma.ToString();
+            txtItbis.Text = itv.ToString();
+            double subtotal = suma + itv;
+            txtSubtotal.Text = subtotal.ToString();
 
         }
 
@@ -159,78 +166,146 @@ namespace ShopInvoice
                     suma = suma + Convert.ToDouble(dataGridView1.Rows[fila].Cells[3].Value);
                 }
 
+                double itv = suma * itbis;
                 txtTotal.Text = suma.ToString();
+                txtItbis.Text = itv.ToString();
+                double subtotal = suma + itv;
+                txtSubtotal.Text = subtotal.ToString();
 
             }
         }
+
+        public int IdVenta { get; set; }
+
+        public void ProcesoPago()
+        {
+            try
+            {
+                decimal total = Convert.ToDecimal(txtTotal.Text);
+                decimal itbis = Convert.ToDecimal(txtItbis.Text);
+                decimal subtotal = Convert.ToDecimal(txtSubtotal.Text);
+                decimal pago = Convert.ToDecimal(txtPago.Text);
+                decimal bal = Convert.ToDecimal(txtBalance.Text);
+               
+                string sql1;
+
+
+                sql1 = $"insert into Ventas(Total, Itbis, SubTotal, Pago, Balance) values ('{total}','{itbis}','{subtotal}','{pago}','{bal}') select scope_identity() as IdVenta;";
+                oCon.Open();
+
+                cmd1 = new SqlCommand(sql1, oCon);
+                SqlDataReader dr = cmd1.ExecuteReader();
+
+                if (dr.Read())
+                {
+                    IdVenta = Convert.ToInt32(dr["IdVenta"].ToString());
+                }
+
+                oCon.Close();
+            }
+            catch(Exception ex)
+            {
+                string mensaje = ex.Message;
+                MessageBox.Show(mensaje);
+                oCon.Close();
+            } 
+        }
+
+
+
+
+       /* public void ProcesoPago()
+        {
+            
+            string sql1;
+
+            sql1 = $"select IdVenta from ventas where IdVenta = '{IdVenta}'";
+            oCon.Open();
+
+            cmd1 = new SqlCommand(sql1, oCon);
+            SqlDataReader dr = cmd1.ExecuteReader();
+
+            if (dr.Read())
+            {
+                IdVenta = Convert.ToInt32(dr["IdVenta"].ToString());
+            }
+            oCon.Close();
+
+        }*/
+
+
+
+
 
         // Guardar Datos
         public void GuardarVenta()
         {
-            string total = txtTotal.Text;
-            string pago = txtPago.Text;
-            string bal = txtBalance.Text;
-            string sql1;
-            string sql2;
-
-            sql1 = "insert into Ventas(SubTotal, Pago, Balance) values (@subtotal, @pago, @balance) select @@identity;";
-            oCon.Open();
-
-            cmd1 = new SqlCommand(sql1, oCon);
-            cmd1.Parameters.AddWithValue("@subtotal", total);
-            cmd1.Parameters.AddWithValue("@pago", pago);
-            cmd1.Parameters.AddWithValue("@balance", bal);
-            int id = Convert.ToInt32(cmd1.ExecuteScalar().ToString());
-
-
-
-            string nombreProd;
-            double precio = 0;
-            int cantidad = 0;
-            double _total = 0;
-
-            for (int row = 0; row < dataGridView1.Rows.Count; row++)
+            try
             {
-                nombreProd = dataGridView1.Rows[row].Cells[0].Value.ToString();
-                precio = double.Parse(dataGridView1.Rows[row].Cells[1].Value.ToString());
-                cantidad = int.Parse(dataGridView1.Rows[row].Cells[2].Value.ToString());
-                _total = double.Parse(dataGridView1.Rows[row].Cells[3].Value.ToString());
-                
-                sql2 = "insert into ProductoVenta (IdVenta, NombreProd, Precio, Cantidad, Total) values (@idventa ,@nombreprod, @precio, @cantidad, @total);";
-                cmd2 = new SqlCommand(sql2, oCon);
-                cmd2.Parameters.AddWithValue("@idventa", id);
-                cmd2.Parameters.AddWithValue("@nombreprod", nombreProd);
-                cmd2.Parameters.AddWithValue("@precio", precio);
-                cmd2.Parameters.AddWithValue("@cantidad", cantidad);
-                cmd2.Parameters.AddWithValue("@total", _total);
+                oCon.Open();
+                string sql2;
+                string nombreProd;
+                double precio = 0;
+                int cantidad = 0;
+                double _total = 0;
 
-                cmd2.ExecuteNonQuery();
+                for (int row = 0; row < dataGridView1.Rows.Count; row++)
+                {
+                    nombreProd = dataGridView1.Rows[row].Cells[0].Value.ToString();
+                    precio = double.Parse(dataGridView1.Rows[row].Cells[1].Value.ToString());
+                    cantidad = int.Parse(dataGridView1.Rows[row].Cells[2].Value.ToString());
+                    _total = double.Parse(dataGridView1.Rows[row].Cells[3].Value.ToString());
+
+                    sql2 = "insert into ProductoVenta (IdVenta, NombreProd, Precio, Cantidad, Total) values (@idventa ,@nombreprod, @precio, @cantidad, @total);";
+                    cmd2 = new SqlCommand(sql2, oCon);
+                    cmd2.Parameters.AddWithValue("@idventa", IdVenta);
+                    cmd2.Parameters.AddWithValue("@nombreprod", nombreProd);
+                    cmd2.Parameters.AddWithValue("@precio", precio);
+                    cmd2.Parameters.AddWithValue("@cantidad", cantidad);
+                    cmd2.Parameters.AddWithValue("@total", _total);
+
+                    cmd2.ExecuteNonQuery();
+                }
+
+                if (MessageBox.Show("Pago Completado!", "SISTEMA", MessageBoxButtons.OK, MessageBoxIcon.Information) == DialogResult.OK)
+                {
+                    txtPago.Clear();
+                }
+
+                oCon.Close();
+            }
+            catch(Exception ex)
+            {
+                string mensaje = ex.Message;
+                MessageBox.Show(mensaje);
+                oCon.Close();
             }
 
-            MessageBox.Show("Pago Completado!", "SISTEMA", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-
+            Imprimir imp = new Imprimir();
+            imp.VentaId = IdVenta;
+            imp.Show();
+            
 
 
         }
-
-
-
-
-
 
 
         private void button2_Click(object sender, EventArgs e)
         {
             double pago = Convert.ToDouble(txtPago.Text);
-            double total = Convert.ToDouble(txtTotal.Text);
+            double total = Convert.ToDouble(txtSubtotal.Text);
             double bal = pago - total;
-
-            GuardarVenta();
-
             txtBalance.Text = bal.ToString();
 
-           
+            ProcesoPago();
+            //ProcesoPago();
+            GuardarVenta();
+
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            
         }
     }
 }
